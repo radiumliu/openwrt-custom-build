@@ -1,7 +1,8 @@
 # ==========================================================
-# OpenWrt x86/64 自定义固件配置 (基于 24.10)
-# 当前系统: 减去 gost, passwall2, cshark (云鲨)
+# OpenWrt x86/64 自定义固件配置 (基于 25.12)
+# 减去: gost, passwall2, cshark (云鲨)
 # 增加: easytier, homeproxy
+# 默认 IP: 192.168.0.223/22
 # ==========================================================
 
 # --- Target ---
@@ -129,6 +130,7 @@ CONFIG_PACKAGE_luci-i18n-homeproxy-zh-cn=y
 
 # --- 新增: easytier ---
 CONFIG_PACKAGE_easytier=y
+CONFIG_PACKAGE_luci-app-easytier=y
 
 # --- Socat ---
 CONFIG_PACKAGE_socat=y
@@ -197,19 +199,8 @@ CONFIG_PACKAGE_luci-i18n-package-manager-zh-cn=y
 # ==========================================================
 # ======== 明确不安装 ========
 # ==========================================================
-# gost (移除)
-# CONFIG_PACKAGE_gost is not set
-# CONFIG_PACKAGE_luci-app-gost is not set
-# CONFIG_PACKAGE_luci-i18n-gost-zh-cn is not set
-
-# passwall2 (移除)
-# CONFIG_PACKAGE_luci-app-passwall2 is not set
-# CONFIG_PACKAGE_luci-i18n-passwall2-zh-cn is not set
-
-# cshark / 云鲨 (移除)
-# CONFIG_PACKAGE_cshark is not set
-# CONFIG_PACKAGE_luci-app-cshark is not set
-# CONFIG_PACKAGE_luci-i18n-cshark-zh-cn is not set
+# 以下包在原系统中有，新固件不装：
+# gost + luci-app-gost, passwall2 + luci-app-passwall2, cshark (云鲨)
 
 # ==========================================================
 # 基础工具

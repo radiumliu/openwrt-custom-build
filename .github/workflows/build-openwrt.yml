@@ -1,13 +1,13 @@
 name: Build OpenWrt Custom Firmware
 
 on:
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:
   push:
     branches: [ "main" ]
 
 env:
   OPENWRT_REPO: https://github.com/openwrt/openwrt.git
-  OPENWRT_BRANCH: openwrt-24.10
+  OPENWRT_BRANCH: openwrt-25.12
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout repo (我们的配置)
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Install build dependencies
@@ -27,51 +27,39 @@ jobs:
             libelf-dev libudev-dev cmake swig patchelf libpcap0.8-dev
           sudo ln -sf /usr/bin/python3 /usr/bin/python
 
-      - name: Build info
-        run: |
-          echo "CPU cores: $(nproc)"
-          echo "RAM: $(free -h | grep Mem | awk '{print $2}')"
-          df -h
-
-      - name: Clone OpenWrt source
+      - name: Clone OpenWrt source (25.12)
         run: |
           git clone --depth=1 -b ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
           cd openwrt
-          echo "=== Commit ==="
-          git log --oneline -1
+          echo "Commit: $(git log --oneline -1)"
 
-      - name: Add custom feeds
+      - name: Clone custom packages
         run: |
           cd openwrt
-          # 备份原始 feeds.conf.default
-          cp feeds.conf.default feeds.conf
-          # 追加自定义 feeds
-          cat ../feeds/feeds.conf.append >> feeds.conf
-          cat feeds.conf
-          # 更新 feeds（有失败也继续）
-          ./scripts/feeds update -a 2>&1 || echo "FEEDS_UPDATE_FAILED=true" >> $GITHUB_ENV
+          # 直接 clone 到 package/ 目录，不用第三方 feeds
+          git clone --depth=1 https://github.com/EasyTier/luci-app-easytier.git package/easytier
+          git clone --depth=1 https://github.com/douglarek/luci-app-homeproxy.git package/homeproxy
+          echo "=== Custom packages ==="
+          ls -d package/easytier package/homeproxy
 
-      - name: Install packages from feeds
+      - name: Update default feeds
         run: |
           cd openwrt
+          ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Configure build
         run: |
           cd openwrt
-          # 复制配置种子
           cp ../config.seed .config
-          # 补充默认配置
           make defconfig
-          echo "=== .config summary ==="
+          echo "=== Diffconfig ==="
           ./scripts/diffconfig.sh
 
-      - name: Download source code
+      - name: Download sources
         run: |
           cd openwrt
           make download -j$(nproc) 2>&1 | tail -20
-          # 验证下载完整性
-          find dl -type f -name "*.ipk" 2>/dev/null | head -5 || true
 
       - name: Build firmware
         run: |
@@ -81,7 +69,6 @@ jobs:
       - name: List built images
         run: |
           ls -lh openwrt/bin/targets/x86/64/
-          echo "=== Factory images ==="
           find openwrt/bin/targets/x86/64/ -name "*combined*" -o -name "*generic*"
 
       - name: Upload firmware artifacts

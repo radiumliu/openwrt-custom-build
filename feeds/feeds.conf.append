@@ -1,10 +1,2 @@
-# 自定义 feeds - 追加到主 OpenWrt feeds 之后
-# kenzok8 社区包（提供必要的依赖库）
-# 常用分支: main（当前默认）
-src-git kenzo https://github.com/kenzok8/openwrt-packages.git
-
-# Easytier LuCI 包（官方）
-src-git easytier https://github.com/EasyTier/luci-app-easytier.git
-
-# homeproxy（Sing-Box 客户端，OpenWrt 23.05+ 兼容）
-src-git homeproxy https://github.com/douglarek/luci-app-homeproxy.git
+# 自定义 feeds 已弃用 — easytier 和 homeproxy 直接在 workflow 中 clone 到 package/
+# 这里留空，只用 OpenWrt 自带的 feeds（packages, luci, routing, telephony）
