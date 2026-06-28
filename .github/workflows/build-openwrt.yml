@@ -43,11 +43,13 @@ jobs:
       - name: Add custom feeds
         run: |
           cd openwrt
+          # 备份原始 feeds.conf.default
+          cp feeds.conf.default feeds.conf
           # 追加自定义 feeds
-          cat ../feeds/feeds.conf.append >> feeds.conf.default
-          cat feeds.conf.default
-          # 更新 feeds
-          ./scripts/feeds update -a
+          cat ../feeds/feeds.conf.append >> feeds.conf
+          cat feeds.conf
+          # 更新 feeds（有失败也继续）
+          ./scripts/feeds update -a 2>&1 || echo "FEEDS_UPDATE_FAILED=true" >> $GITHUB_ENV
 
       - name: Install packages from feeds
         run: |
