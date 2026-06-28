@@ -1,0 +1,7 @@
+# 自定义 feeds - 追加到主 OpenWrt feeds 之后
+# kenzok8 社区包（提供 homeproxy 等）
+# 常用分支: main（当前默认）
+src-git kenzo https://github.com/kenzok8/openwrt-packages.git
+
+# Easytier 官方 OpenWrt 包
+src-git easytier https://github.com/EasyTier/OpenWrt-easytier.git

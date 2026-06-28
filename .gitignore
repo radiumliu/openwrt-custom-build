@@ -1,0 +1,8 @@
+# GitHub Actions workflow only project
+openwrt/          # 构建时会 clone，不需要在 repo 中
+*.gz
+*.img
+*.iso
+*.vdi
+*.vmdk
+*.qcow2
