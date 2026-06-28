@@ -126,7 +126,7 @@ CONFIG_PACKAGE_ddns-go=y
 
 # --- 新增: homeproxy (替换 passwall2) ---
 CONFIG_PACKAGE_luci-app-homeproxy=y
-CONFIG_PACKAGE_luci-i18n-homeproxy-zh-cn=y
+# luci-i18n-homeproxy-zh-cn 可能不存在，由 homeproxy 自动安装
 
 # --- 新增: easytier ---
 CONFIG_PACKAGE_easytier=y
@@ -216,6 +216,13 @@ CONFIG_PACKAGE_nping=y
 CONFIG_PACKAGE_e2fsprogs=y
 CONFIG_PACKAGE_partx-utils=y
 CONFIG_PACKAGE_libpcap=y
+CONFIG_PACKAGE_shadowsocks-rust-ssserver=y
+CONFIG_PACKAGE_shadowsocksr-libev-ssr-server=y
+CONFIG_PACKAGE_tc-tiny=y
+CONFIG_PACKAGE_geoview=y
+CONFIG_PACKAGE_openwrt-keyring=y
+CONFIG_PACKAGE_ubox=y
+CONFIG_PACKAGE_uclient-fetch=y
 
 # ==========================================================
 # LuCI 语言包
