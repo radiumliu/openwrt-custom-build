@@ -52,9 +52,26 @@ jobs:
       - name: Configure build
         run: |
           cd openwrt
-          cp ../config.seed .config
+          # 1. 先生成 x86/64 的默认配置
+          cat << EOF > .config
+          CONFIG_TARGET_x86=y
+          CONFIG_TARGET_x86_64=y
+          CONFIG_TARGET_MULTI_PROFILE=y
+          CONFIG_TARGET_ROOTFS_EXT4FS=y
+          CONFIG_TARGET_ROOTFS_PARTSIZE=1024
+          CONFIG_TARGET_IMAGES_GZIP=y
+          CONFIG_GRUB_IMAGES=y
+          CONFIG_GRUB_TIMEOUT="3"
+          EOF
           make defconfig
-          echo "=== Diffconfig ==="
+          echo "=== Base config ==="
+          grep -c "TARGET\|ROOTFS\|GRUB" .config
+          # 2. 追加包选择
+          cd ..
+          python3 merge_config.py
+          cd openwrt
+          make defconfig
+          echo "=== Final diff ==="
           ./scripts/diffconfig.sh
 
       - name: Download sources
@@ -69,8 +86,10 @@ jobs:
 
       - name: List built images
         run: |
-          ls -lh openwrt/bin/targets/x86/64/
-          find openwrt/bin/targets/x86/64/ -name "*combined*" -o -name "*generic*"
+          echo "=== ALL files in output ==="
+          find openwrt/bin/targets/x86/64/ -type f -ls 2>/dev/null
+          echo "=== Images ==="
+          find openwrt/bin/targets/x86/64/ -name "*.img*" -o -name "*.iso" -o -name "*.vdi" -o -name "*.vmdk" 2>/dev/null
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
