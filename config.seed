@@ -88,8 +88,9 @@ CONFIG_PACKAGE_pptpd=y
 # 代理/加密协议
 # ==========================================================
 CONFIG_PACKAGE_xray-core=y
-# sing-box 由 luci-app-homeproxy 自动选择，不显式装
-# CONFIG_PACKAGE_sing-box=y  # homeproxy 会自动 select
+# sing-box — homeproxy 依赖它，但它的 select 导致递归依赖
+# 所以 patch 掉 homeproxy 的 +sing-box，在 config.seed 里显式选
+CONFIG_PACKAGE_sing-box=y
 CONFIG_PACKAGE_shadowsocks-rust-sslocal=y
 CONFIG_PACKAGE_shadowsocksr-libev-ssr-check=y
 CONFIG_PACKAGE_shadowsocksr-libev-ssr-local=y

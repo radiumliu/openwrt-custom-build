@@ -36,10 +36,14 @@ jobs:
       - name: Clone custom packages
         run: |
           cd openwrt
-          # 直接 clone 到 package/ 目录，不用第三方 feeds
+          # 直接 clone 到 package/ 目录
           git clone --depth=1 https://github.com/EasyTier/luci-app-easytier.git package/easytier
           git clone --depth=1 https://github.com/douglarek/luci-app-homeproxy.git package/homeproxy
           git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git package/lucky
+          # Patch: 去掉 + 前缀移除 Kconfig select，避免递归依赖
+          sed -i 's/+sing-box/sing-box/' package/homeproxy/Makefile
+          echo "=== Patched homeproxy Makefile ==="
+          grep "sing-box" package/homeproxy/Makefile
           echo "=== Custom packages ==="
           ls -d package/easytier package/homeproxy package/lucky
 
