@@ -89,7 +89,16 @@ jobs:
       - name: Build firmware
         run: |
           cd openwrt
-          yes "n" | make -j$(nproc) V=s 2>&1
+          # 先准备 kernel 构建目录
+          make target/linux/prepare V=s 2>&1
+          # 在 kernel 源码中运行 olddefconfig，避免编译时 syncconfig 卡住
+          KDIR=$(ls -d build_dir/target-x86_64_musl/linux-x86_64/linux-*/ 2>/dev/null | head -1)
+          if [ -n "$KDIR" ]; then
+            cd "$KDIR"
+            make olddefconfig 2>&1 || true
+            cd ../../../..
+          fi
+          make -j$(nproc) V=s 2>&1
 
       - name: List built images
         run: |
