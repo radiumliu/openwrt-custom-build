@@ -89,7 +89,7 @@ jobs:
       - name: Build firmware
         run: |
           cd openwrt
-          make -j$(nproc) V=s 2>&1 | tail -50
+          yes "" | make -j$(nproc) V=s 2>&1 | tail -50
 
       - name: List built images
         run: |
