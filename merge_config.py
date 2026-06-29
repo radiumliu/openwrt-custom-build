@@ -3,14 +3,18 @@
 Merge package selections from config.seed into OpenWrt .config.
 Skips target/architecture options already set by the workflow.
 """
-import re
+import re, os
 
-# Read the config.seed
-with open("config.seed") as f:
+# Determine paths - script runs from openwrt/ or repo root?
+script_dir = os.path.dirname(os.path.abspath(__file__))  # repo root
+
+# Read the config.seed from repo root
+with open(os.path.join(script_dir, "config.seed")) as f:
     seed_lines = f.readlines()
 
 # Read the current .config
-with open("openwrt/.config") as f:
+config_path = os.path.join(script_dir, "openwrt/.config")
+with open(config_path) as f:
     config_lines = f.readlines()
 
 # Extract CONFIG_PACKAGE_* lines from config.seed
@@ -62,7 +66,7 @@ for line in package_lines:
 existing_set = set(existing.keys())
 keys_seen = set()
 
-with open("openwrt/.config", "w") as f:
+with open(os.path.join(script_dir, "openwrt/.config"), "w") as f:
     for line in config_lines:
         stripped = line.strip()
         if stripped.startswith("CONFIG_") and ("=y" in line or "=m" in line or "=n" in line):
