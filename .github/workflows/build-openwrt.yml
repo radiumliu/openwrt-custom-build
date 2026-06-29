@@ -56,16 +56,15 @@ jobs:
       - name: Configure build
         run: |
           cd openwrt
-          # 1. 只写 target，生成基础配置
+          # 1. 生成 target 基础配置（和 Run #9 一样，能过）
           cat << EOF > .config
           CONFIG_TARGET_x86=y
           CONFIG_TARGET_x86_64=y
           CONFIG_TARGET_MULTI_PROFILE=y
           EOF
           make defconfig
-          echo "=== Base config: $(wc -l < .config) lines ==="
           
-          # 2. 追加 ext4 + GRUB 镜像设置
+          # 2. 追加镜像设置 + 包选项
           cat >> .config << 'EOF2'
           CONFIG_TARGET_ROOTFS_EXT4FS=y
           CONFIG_TARGET_ROOTFS_PARTSIZE=1024
@@ -73,15 +72,13 @@ jobs:
           CONFIG_GRUB_IMAGES=y
           CONFIG_GRUB_TIMEOUT="3"
           EOF2
-          
-          # 3. 从 config.seed 追加所有包选项
           grep '^CONFIG_PACKAGE_.*=[ym]$' ../config.seed >> .config
           
-          # 4. 补全依赖（不重置已有选项）
-          make olddefconfig 2>&1
-          echo "=== Final check ==="
-          grep -E "ROOTFS_EXT4|GRUB_IMAGES" .config
-          echo "=== Package count ==="
+          # 3. 不跑 defconfig/olddefconfig，直接 make
+          # make 会自动补全依赖，且不会把镜像设置重置
+          echo "=== Final .config ==="
+          grep -E "ROOTFS_EXT4|GRUB_IMAGES|TARGET_x86" .config
+          echo "=== PACKAGE count ==="
           grep -c "CONFIG_PACKAGE_" .config
 
       - name: Download sources
