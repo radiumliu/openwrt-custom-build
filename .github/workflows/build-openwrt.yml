@@ -52,32 +52,33 @@ jobs:
       - name: Configure build
         run: |
           cd openwrt
-          # 1. 只写 target 信息，先生成基础配置
+          # 1. 只写 target，生成基础配置
           cat << EOF > .config
           CONFIG_TARGET_x86=y
           CONFIG_TARGET_x86_64=y
           CONFIG_TARGET_MULTI_PROFILE=y
           EOF
           make defconfig
-          echo "=== Base config done, lines: $(wc -l < .config) ==="
+          echo "=== Base config: $(wc -l < .config) lines ==="
           
-          # 2. 追加 RootFS 和 GRUB 选项
-          # (make defconfig 重置了它们，需重新设置)
-          cat >> .config << EOF
+          # 2. 追加 ext4 + GRUB 镜像设置
+          cat >> .config << 'EOF2'
           CONFIG_TARGET_ROOTFS_EXT4FS=y
           CONFIG_TARGET_ROOTFS_PARTSIZE=1024
           CONFIG_TARGET_IMAGES_GZIP=y
           CONFIG_GRUB_IMAGES=y
           CONFIG_GRUB_TIMEOUT="3"
-          EOF
+          EOF2
           
-          # 3. 合并所有包选项（不跑 make defconfig，直接 olddefconfig 补全）
-          python3 ../merge_config.py
+          # 3. 从 config.seed 追加所有包选项
+          grep '^CONFIG_PACKAGE_.*=[ym]$' ../config.seed >> .config
+          
+          # 4. 补全依赖（不重置已有选项）
           make olddefconfig 2>&1
-          echo "=== Final .config summary ==="
-          grep -E "ROOTFS_EXT4|GRUB_IMAGES|GRUB_TIMEOUT" .config
-          echo "=== Diff ==="
-          ./scripts/diffconfig.sh
+          echo "=== Final check ==="
+          grep -E "ROOTFS_EXT4|GRUB_IMAGES" .config
+          echo "=== Package count ==="
+          grep -c "CONFIG_PACKAGE_" .config
 
       - name: Download sources
         run: |
