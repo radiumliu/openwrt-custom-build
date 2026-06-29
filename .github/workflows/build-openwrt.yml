@@ -52,26 +52,31 @@ jobs:
       - name: Configure build
         run: |
           cd openwrt
-          # 1. 先生成 x86/64 的默认配置
+          # 1. 只写 target 信息，先生成基础配置
           cat << EOF > .config
           CONFIG_TARGET_x86=y
           CONFIG_TARGET_x86_64=y
           CONFIG_TARGET_MULTI_PROFILE=y
+          EOF
+          make defconfig
+          echo "=== Base config done, lines: $(wc -l < .config) ==="
+          
+          # 2. 追加 RootFS 和 GRUB 选项
+          # (make defconfig 重置了它们，需重新设置)
+          cat >> .config << EOF
           CONFIG_TARGET_ROOTFS_EXT4FS=y
           CONFIG_TARGET_ROOTFS_PARTSIZE=1024
           CONFIG_TARGET_IMAGES_GZIP=y
           CONFIG_GRUB_IMAGES=y
           CONFIG_GRUB_TIMEOUT="3"
           EOF
-          make defconfig
-          echo "=== Base config ==="
-          grep -c "TARGET\|ROOTFS\|GRUB" .config
-          # 2. 追加包选择
-          cd ..
-          python3 merge_config.py
-          cd openwrt
-          make defconfig
-          echo "=== Final diff ==="
+          
+          # 3. 合并所有包选项（不跑 make defconfig，直接 olddefconfig 补全）
+          python3 ../merge_config.py
+          make olddefconfig 2>&1
+          echo "=== Final .config summary ==="
+          grep -E "ROOTFS_EXT4|GRUB_IMAGES|GRUB_TIMEOUT" .config
+          echo "=== Diff ==="
           ./scripts/diffconfig.sh
 
       - name: Download sources
