@@ -61,13 +61,14 @@ jobs:
           make defconfig
           
           # make defconfig 会丢掉 ROOTFS_EXT4FS 和 GRUB_IMAGES（默认 n）
-          # 重新设回来，确保固件镜像被编译
-          sed -i 's/.*CONFIG_TARGET_ROOTFS_EXT4FS.*/CONFIG_TARGET_ROOTFS_EXT4FS=y/' .config
-          sed -i 's/.*CONFIG_GRUB_IMAGES.*/CONFIG_GRUB_IMAGES=y/' .config
-          sed -i 's/.*CONFIG_TARGET_IMAGES_GZIP.*/CONFIG_TARGET_IMAGES_GZIP=y/' .config
-          sed -i 's/.*CONFIG_VMDK_IMAGES.*/# CONFIG_VMDK_IMAGES is not set/' .config
+          # 直接追加，不碰已存在的行
+          echo "CONFIG_TARGET_ROOTFS_EXT4FS=y" >> .config
+          echo "CONFIG_TARGET_ROOTFS_PARTSIZE=1024" >> .config
+          echo "CONFIG_TARGET_IMAGES_GZIP=y" >> .config
+          echo "CONFIG_GRUB_IMAGES=y" >> .config
+          echo "CONFIG_GRUB_TIMEOUT=\"3\"" >> .config
           
-          echo "=== Image config ==="
+          echo "=== Image config after append ==="
           grep -E "ROOTFS_EXT4|GRUB_IMAGES|TARGET_IMAGES" .config
 
       - name: Download sources
