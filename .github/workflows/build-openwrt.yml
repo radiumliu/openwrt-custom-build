@@ -89,18 +89,13 @@ jobs:
       - name: Build firmware
         run: |
           cd openwrt
-          # 准备 kernel 构建目录
-          make target/linux/prepare V=s 2>&1
-          # 在 kernel .config 中预设 REALTEK_PHY_HWMON，
-          # 避免编译时 syncconfig 因新选项卡住
-          KDIR=$(ls -d build_dir/target-x86_64_musl/linux-x86_64/linux-*/ 2>/dev/null | head -1)
-          if [ -n "$KDIR" ]; then
-            echo "=== Patching kernel config in $KDIR ==="
-            grep -q "REALTEK_PHY_HWMON" "$KDIR/.config" 2>/dev/null || \
-              echo "CONFIG_REALTEK_PHY_HWMON=y" >> "$KDIR/.config"
-            head -3 "$KDIR/.config"
-          else
-            echo "WARNING: kernel build dir not found after prepare"
+          # 在 OpenWrt 的 kernel config 文件中预设新选项
+          # 这样 target/linux/prepare 复制时可避免 syncconfig 因新选项卡住
+          TARGET_CFG="target/linux/x86/config-6.12"
+          if [ -f "$TARGET_CFG" ]; then
+            grep -q "REALTEK_PHY_HWMON" "$TARGET_CFG" || \
+              echo -e "\n# Realtek PHY HWMON support\nCONFIG_REALTEK_PHY_HWMON=n" >> "$TARGET_CFG"
+            echo "=== Patched kernel config: $(grep -c "REALTEK_PHY" $TARGET_CFG) lines ==="
           fi
           make -j$(nproc) V=s 2>&1
 
