@@ -56,30 +56,19 @@ jobs:
       - name: Configure build
         run: |
           cd openwrt
-          # 1. 生成 target 基础配置（和 Run #9 一样，能过）
-          cat << EOF > .config
-          CONFIG_TARGET_x86=y
-          CONFIG_TARGET_x86_64=y
-          CONFIG_TARGET_MULTI_PROFILE=y
-          EOF
+          # Run #9 已验证能正确编译：直接复制完整 config.seed → defconfig
+          cp ../config.seed .config
           make defconfig
           
-          # 2. 追加镜像设置 + 包选项
-          cat >> .config << 'EOF2'
-          CONFIG_TARGET_ROOTFS_EXT4FS=y
-          CONFIG_TARGET_ROOTFS_PARTSIZE=1024
-          CONFIG_TARGET_IMAGES_GZIP=y
-          CONFIG_GRUB_IMAGES=y
-          CONFIG_GRUB_TIMEOUT="3"
-          EOF2
-          grep '^CONFIG_PACKAGE_.*=[ym]$' ../config.seed >> .config
+          # make defconfig 会丢掉 ROOTFS_EXT4FS 和 GRUB_IMAGES（默认 n）
+          # 重新设回来，确保固件镜像被编译
+          sed -i 's/.*CONFIG_TARGET_ROOTFS_EXT4FS.*/CONFIG_TARGET_ROOTFS_EXT4FS=y/' .config
+          sed -i 's/.*CONFIG_GRUB_IMAGES.*/CONFIG_GRUB_IMAGES=y/' .config
+          sed -i 's/.*CONFIG_TARGET_IMAGES_GZIP.*/CONFIG_TARGET_IMAGES_GZIP=y/' .config
+          sed -i 's/.*CONFIG_VMDK_IMAGES.*/# CONFIG_VMDK_IMAGES is not set/' .config
           
-          # 3. 不跑 defconfig/olddefconfig，直接 make
-          # make 会自动补全依赖，且不会把镜像设置重置
-          echo "=== Final .config ==="
-          grep -E "ROOTFS_EXT4|GRUB_IMAGES|TARGET_x86" .config
-          echo "=== PACKAGE count ==="
-          grep -c "CONFIG_PACKAGE_" .config
+          echo "=== Image config ==="
+          grep -E "ROOTFS_EXT4|GRUB_IMAGES|TARGET_IMAGES" .config
 
       - name: Download sources
         run: |
@@ -89,14 +78,6 @@ jobs:
       - name: Build firmware
         run: |
           cd openwrt
-          # 在 OpenWrt 的 kernel config 文件中预设新选项
-          # 这样 target/linux/prepare 复制时可避免 syncconfig 因新选项卡住
-          TARGET_CFG="target/linux/x86/config-6.12"
-          if [ -f "$TARGET_CFG" ]; then
-            grep -q "REALTEK_PHY_HWMON" "$TARGET_CFG" || \
-              echo -e "\n# Realtek PHY HWMON support\nCONFIG_REALTEK_PHY_HWMON=n" >> "$TARGET_CFG"
-            echo "=== Patched kernel config: $(grep -c "REALTEK_PHY" $TARGET_CFG) lines ==="
-          fi
           make -j$(nproc) V=s 2>&1
 
       - name: List built images
