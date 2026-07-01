@@ -1,4 +1,4 @@
-name: Build OpenWrt Custom Firmware (ImageBuilder)
+name: Build OpenWrt Custom Firmware (ImageBuilder 25.12.3)
 
 on:
   workflow_dispatch:
@@ -14,28 +14,25 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Download OpenWrt ImageBuilder 24.10.3
+      - name: Install zstd
         run: |
-          wget -q https://downloads.openwrt.org/releases/24.10.3/targets/x86/64/openwrt-imagebuilder-24.10.3-x86-64.Linux-x86_64.tar.xz
-          tar -xJf openwrt-imagebuilder-*.tar.xz
-          mv openwrt-imagebuilder-* ib
-          echo "ImageBuilder ready"
+          sudo apt-get update && sudo apt-get install -y zstd
 
-      - name: Configure ImageBuilder
+      - name: Download OpenWrt ImageBuilder 25.12.3
+        run: |
+          wget -q https://downloads.openwrt.org/releases/25.12.3/targets/x86/64/openwrt-imagebuilder-25.12.3-x86-64.Linux-x86_64.tar.zst
+          tar -I zstd -xf openwrt-imagebuilder-*.tar.zst
+          mv openwrt-imagebuilder-* ib
+          echo "ImageBuilder 25.12.3 ready"
+
+      - name: Clone custom packages
         run: |
           cd ib
-
-          # Add kenzo feed (for lucky, etc.)
-          echo "src/gz openwrt_kenzo https://downloads.openwrt.org/releases/24.10.3/packages/x86_64/kenzo" >> repositories.conf
-
-          # Clone custom packages
           git clone --depth=1 https://github.com/EasyTier/luci-app-easytier.git package/easytier
           git clone --depth=1 https://github.com/douglarek/luci-app-homeproxy.git package/homeproxy
           git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git package/lucky
-
           # Patch homeproxy's +sing-box to avoid Kconfig warning
           sed -i 's/+sing-box/sing-box/' package/homeproxy/Makefile
-
           # Update package index
           make package/symlinks 2>&1
 
@@ -43,38 +40,62 @@ jobs:
         run: |
           cd ib
 
-          PACKAGES="\
-            base-files busybox dropbear dnsmasq-full firewall4 \
-            kmod-r8169 kmod-e1000e kmod-e1000 kmod-igb kmod-ixgbe kmod-tg3 kmod-bnx2 kmod-forcedeth kmod-amazon-ena kmod-amd-xgbe kmod-dwmac-intel kmod-igc \
+          PACKAGES="base-files busybox dropbear dnsmasq-full firewall4 nftables-json \
+            odhcpd-ipv6only odhcp6c \
+            kmod-r8169 kmod-e1000e kmod-e1000 kmod-igb kmod-ixgbe kmod-tg3 kmod-bnx2 \
+            kmod-forcedeth kmod-amazon-ena kmod-amd-xgbe kmod-dwmac-intel kmod-igc \
             kmod-tun kmod-gre kmod-ppp kmod-pppoe kmod-pptp kmod-macvlan kmod-ifb \
-            kmod-nf-flow kmod-nft-offload kmod-ipt-tproxy kmod-ipt-ipopt kmod-ipt-iprange kmod-ipt-socket kmod-ipt-conntrack-extra \
-            kmod-crypto-hwcc kmod-phy-realtek \
-            ip-full ipset iptables-nft iptables-mod-tproxy nftables-json xtables-legacy xtables-nft \
+            kmod-nf-flow kmod-nft-offload \
+            kmod-ipt-tproxy kmod-ipt-ipopt kmod-ipt-iprange kmod-ipt-socket kmod-ipt-conntrack-extra \
+            kmod-phy-realtek kmod-crypto-hwcc kmod-pps kmod-ptp kmod-slhc \
+            kmod-fs-vfat kmod-nls-cp437 kmod-nls-iso8859-1 kmod-nls-utf8 \
+            ip-full ipset iptables-nft iptables-mod-tproxy iptables-mod-conntrack-extra \
+            iptables-mod-ipopt iptables-mod-iprange iptables-mod-socket \
+            ip6tables-nft xtables-legacy xtables-nft \
+            tc-tiny resolveip \
             mwan3 luci-app-mwan3 \
             ppp ppp-mod-pppoe ppp-mod-pptp pptpd \
-            luci luci-ssl luci-base luci-compat luci-mod-admin-full luci-mod-network luci-mod-status luci-mod-system \
-            luci-proto-ppp luci-proto-ipv6 luci-theme-bootstrap \
-            luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn \
-            xray-core shadowsocks-rust-sslocal shadowsocksr-libev-ssr-local shadowsocksr-libev-ssr-redir \
-            shadowsocksr-libev-ssr-check naiveproxy hysteria tuic-client \
-            v2ray-geoip v2ray-geosite v2ray-plugin simple-obfs-client \
-            microsocks dns2socks dns2tcp haproxy tcping \
+            xray-core shadowsocks-rust-sslocal shadowsocks-rust-ssserver \
+            shadowsocksr-libev-ssr-local shadowsocksr-libev-ssr-redir shadowsocksr-libev-ssr-check \
+            shadowsocksr-libev-ssr-server \
+            naiveproxy hysteria tuic-client \
+            v2ray-geoip v2ray-geosite v2ray-plugin v2dat \
+            simple-obfs-client microsocks dns2socks dns2tcp \
+            haproxy tcping eoip \
             chinadns-ng mosdns luci-app-mosdns ddns-go \
             socat luci-app-socat \
             ttyd luci-app-ttyd \
             miniupnpd-nftables luci-app-upnp \
             luci-app-qos qos-scripts \
             luci-app-eqos \
-            luci-app-statistics collectd collectd-mod-cpu collectd-mod-interface collectd-mod-load collectd-mod-memory collectd-mod-network collectd-mod-rrdtool rrdtool1 \
+            luci-app-statistics collectd collectd-mod-cpu collectd-mod-interface \
+            collectd-mod-load collectd-mod-memory collectd-mod-network collectd-mod-rrdtool \
+            rrdtool1 geoview \
             luci-app-wol etherwake \
             luci-app-filemanager \
             luci-app-vlmcsd vlmcsd \
             luci-app-advanced-reboot \
             luci-app-package-manager \
-            curl ca-bundle jq unzip coreutils coreutils-base64 coreutils-nohup nping e2fsprogs partx-utils \
-            homeproxy easytier luci-app-easytier lucky luci-app-lucky \
-            --strip gost luci-app-gost passwall2 luci-app-passwall2 cshark luci-app-cshark"
+            luci luci-base luci-compat luci-mod-admin-full \
+            luci-mod-network luci-mod-status luci-mod-system \
+            luci-proto-ppp luci-proto-ipv6 luci-theme-bootstrap \
+            luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn \
+            luci-i18n-mwan3-zh-cn luci-i18n-mosdns-zh-cn \
+            luci-i18n-socat-zh-cn luci-i18n-ttyd-zh-cn \
+            luci-i18n-upnp-zh-cn luci-i18n-qos-zh-cn \
+            luci-i18n-eqos-zh-cn luci-i18n-statistics-zh-cn \
+            luci-i18n-wol-zh-cn luci-i18n-filemanager-zh-cn \
+            luci-i18n-vlmcsd-zh-cn luci-i18n-advanced-reboot-zh-cn \
+            luci-i18n-package-manager-zh-cn luci-i18n-lucky-zh-cn \
+            curl ca-bundle jq unzip coreutils coreutils-base64 coreutils-nohup \
+            nping e2fsprogs partx-utils mkf2fs \
+            uclient-fetch ubox openwrt-keyring \
+            homeproxy luci-app-homeproxy \
+            easytier luci-app-easytier \
+            lucky luci-app-lucky"
 
+          # ImageBuilder 的 --strip 参数用来排除不需要的包
+          # 但我们直接不装它们就行
           make image PROFILE=generic PACKAGES="$PACKAGES" \
             BIN_DIR="$GITHUB_WORKSPACE/bin" \
             FILES="../files/" 2>&1
@@ -82,7 +103,8 @@ jobs:
       - name: List built images
         run: |
           ls -lh bin/
-          find bin/ -name "*.img*" -o -name "*.iso" -o -name "*.vdi" -o -name "*.vmdk"
+          echo "=== Images ==="
+          find bin/ -name "*.img*" -o -name "*.iso" -o -name "*.vdi" -o -name "*.vmdk" 2>/dev/null | head -10
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
