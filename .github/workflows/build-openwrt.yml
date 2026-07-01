@@ -20,10 +20,12 @@ jobs:
 
       - name: Download OpenWrt ImageBuilder 25.12.3
         run: |
-          wget -q https://downloads.openwrt.org/releases/25.12.3/targets/x86/64/openwrt-imagebuilder-25.12.3-x86-64.Linux-x86_64.tar.zst
-          tar -I zstd -xf openwrt-imagebuilder-*.tar.zst
-          mv openwrt-imagebuilder-* ib
+          mkdir -p ib
+          wget -q https://downloads.openwrt.org/releases/25.12.3/targets/x86/64/openwrt-imagebuilder-25.12.3-x86-64.Linux-x86_64.tar.zst -O ib.tar.zst
+          tar -I zstd -xf ib.tar.zst -C ib --strip-components=1
+          rm -f ib.tar.zst
           echo "ImageBuilder 25.12.3 ready"
+          ls ib/ | head -5
 
       - name: Clone custom packages
         run: |
