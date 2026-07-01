@@ -1,106 +1,92 @@
-name: Build OpenWrt Custom Firmware
+name: Build OpenWrt Custom Firmware (ImageBuilder)
 
 on:
   workflow_dispatch:
   push:
     branches: [ "main" ]
 
-env:
-  OPENWRT_REPO: https://github.com/openwrt/openwrt.git
-  OPENWRT_BRANCH: openwrt-25.12
-
 jobs:
   build:
-    name: Build x86_64 Generic
+    name: Build x86_64 Firmware
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      - name: Download OpenWrt ImageBuilder 24.10.3
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential clang flex bison g++ gawk \
-            gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
-            python3 python3-pykwalify rsync unzip zlib1g-dev file wget curl \
-            libelf-dev libudev-dev cmake swig patchelf libpcap0.8-dev
-          sudo ln -sf /usr/bin/python3 /usr/bin/python
+          wget -q https://downloads.openwrt.org/releases/24.10.3/targets/x86/64/openwrt-imagebuilder-24.10.3-x86-64.Linux-x86_64.tar.xz
+          tar -xJf openwrt-imagebuilder-*.tar.xz
+          mv openwrt-imagebuilder-* ib
+          echo "ImageBuilder ready"
 
-      - name: Clone OpenWrt source (25.12)
+      - name: Configure ImageBuilder
         run: |
-          git clone --depth=1 -b ${{ env.OPENWRT_BRANCH }} ${{ env.OPENWRT_REPO }} openwrt
-          cd openwrt
-          echo "Commit: $(git log --oneline -1)"
+          cd ib
 
-      - name: Clone custom packages
-        run: |
-          cd openwrt
-          # 直接 clone 到 package/ 目录
+          # Add kenzo feed (for lucky, etc.)
+          echo "src/gz openwrt_kenzo https://downloads.openwrt.org/releases/24.10.3/packages/x86_64/kenzo" >> repositories.conf
+
+          # Clone custom packages
           git clone --depth=1 https://github.com/EasyTier/luci-app-easytier.git package/easytier
           git clone --depth=1 https://github.com/douglarek/luci-app-homeproxy.git package/homeproxy
           git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git package/lucky
-          # Patch: 去掉 + 前缀移除 Kconfig select，避免递归依赖
+
+          # Patch homeproxy's +sing-box to avoid Kconfig warning
           sed -i 's/+sing-box/sing-box/' package/homeproxy/Makefile
-          echo "=== Patched homeproxy Makefile ==="
-          grep "sing-box" package/homeproxy/Makefile
-          echo "=== Custom packages ==="
-          ls -d package/easytier package/homeproxy package/lucky
 
-      - name: Update default feeds
-        run: |
-          cd openwrt
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          # Update package index
+          make package/symlinks 2>&1
 
-      - name: Configure build
+      - name: Build firmware image
         run: |
-          cd openwrt
-          # Run #9 已验证能正确编译：直接复制完整 config.seed → defconfig
-          cp ../config.seed .config
-          make defconfig
-          
-          # make defconfig 会丢掉 ROOTFS_EXT4FS 和 GRUB_IMAGES（默认 n）
-          # 直接追加，不碰已存在的行
-          echo "CONFIG_TARGET_ROOTFS_EXT4FS=y" >> .config
-          echo "CONFIG_TARGET_ROOTFS_PARTSIZE=1024" >> .config
-          echo "CONFIG_TARGET_IMAGES_GZIP=y" >> .config
-          echo "CONFIG_GRUB_IMAGES=y" >> .config
-          echo "CONFIG_GRUB_TIMEOUT=\"3\"" >> .config
-          
-          echo "=== Image config after append ==="
-          grep -E "ROOTFS_EXT4|GRUB_IMAGES|TARGET_IMAGES" .config
+          cd ib
 
-      - name: Download sources
-        run: |
-          cd openwrt
-          make download -j$(nproc) 2>&1 | tail -20
+          PACKAGES="\
+            base-files busybox dropbear dnsmasq-full firewall4 \
+            kmod-r8169 kmod-e1000e kmod-e1000 kmod-igb kmod-ixgbe kmod-tg3 kmod-bnx2 kmod-forcedeth kmod-amazon-ena kmod-amd-xgbe kmod-dwmac-intel kmod-igc \
+            kmod-tun kmod-gre kmod-ppp kmod-pppoe kmod-pptp kmod-macvlan kmod-ifb \
+            kmod-nf-flow kmod-nft-offload kmod-ipt-tproxy kmod-ipt-ipopt kmod-ipt-iprange kmod-ipt-socket kmod-ipt-conntrack-extra \
+            kmod-crypto-hwcc kmod-phy-realtek \
+            ip-full ipset iptables-nft iptables-mod-tproxy nftables-json xtables-legacy xtables-nft \
+            mwan3 luci-app-mwan3 \
+            ppp ppp-mod-pppoe ppp-mod-pptp pptpd \
+            luci luci-ssl luci-base luci-compat luci-mod-admin-full luci-mod-network luci-mod-status luci-mod-system \
+            luci-proto-ppp luci-proto-ipv6 luci-theme-bootstrap \
+            luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn \
+            xray-core shadowsocks-rust-sslocal shadowsocksr-libev-ssr-local shadowsocksr-libev-ssr-redir \
+            shadowsocksr-libev-ssr-check naiveproxy hysteria tuic-client \
+            v2ray-geoip v2ray-geosite v2ray-plugin simple-obfs-client \
+            microsocks dns2socks dns2tcp haproxy tcping \
+            chinadns-ng mosdns luci-app-mosdns ddns-go \
+            socat luci-app-socat \
+            ttyd luci-app-ttyd \
+            miniupnpd-nftables luci-app-upnp \
+            luci-app-qos qos-scripts \
+            luci-app-eqos \
+            luci-app-statistics collectd collectd-mod-cpu collectd-mod-interface collectd-mod-load collectd-mod-memory collectd-mod-network collectd-mod-rrdtool rrdtool1 \
+            luci-app-wol etherwake \
+            luci-app-filemanager \
+            luci-app-vlmcsd vlmcsd \
+            luci-app-advanced-reboot \
+            luci-app-package-manager \
+            curl ca-bundle jq unzip coreutils coreutils-base64 coreutils-nohup nping e2fsprogs partx-utils \
+            homeproxy easytier luci-app-easytier lucky luci-app-lucky \
+            --strip gost luci-app-gost passwall2 luci-app-passwall2 cshark luci-app-cshark"
 
-      - name: Build firmware
-        run: |
-          cd openwrt
-          # 先编译 base-files（有时并行编译会漏掉它）
-          make package/base-files/compile V=s 2>&1
-          make -j$(nproc) V=s 2>&1
+          make image PROFILE=generic PACKAGES="$PACKAGES" \
+            BIN_DIR="$GITHUB_WORKSPACE/bin" \
+            FILES="../files/" 2>&1
 
       - name: List built images
         run: |
-          echo "=== ALL files in output ==="
-          find openwrt/bin/targets/x86/64/ -type f -ls 2>/dev/null
-          echo "=== Images ==="
-          find openwrt/bin/targets/x86/64/ -name "*.img*" -o -name "*.iso" -o -name "*.vdi" -o -name "*.vmdk" 2>/dev/null
+          ls -lh bin/
+          find bin/ -name "*.img*" -o -name "*.iso" -o -name "*.vdi" -o -name "*.vmdk"
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
           name: openwrt-x86-64-custom
-          path: openwrt/bin/targets/x86/64/
+          path: bin/
           retention-days: 14
-
-      - name: Upload build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: openwrt/logs/
-          retention-days: 7
