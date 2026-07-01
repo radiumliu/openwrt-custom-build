@@ -79,6 +79,8 @@ jobs:
       - name: Build firmware
         run: |
           cd openwrt
+          # 先编译 base-files（有时并行编译会漏掉它）
+          make package/base-files/compile V=s 2>&1
           make -j$(nproc) V=s 2>&1
 
       - name: List built images
